@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "smoke:handover": "esbuild scripts/smoke-handover.ts --bundle --format=esm --platform=node --alias:@=./src --outfile=node_modules/.tmp-smoke-handover.mjs --log-level=warning && node node_modules/.tmp-smoke-handover.mjs"
   },
   "dependencies": {
     "pinia": "^2.1.7",

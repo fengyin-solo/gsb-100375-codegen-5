@@ -6,10 +6,19 @@
         <p class="page-desc">维护雨量记录，围绕记录编号、站点编号、观测时段、时段雨量做登记、筛选与状态流转。</p>
       </div>
       <div class="page-actions">
-        <button class="btn primary" type="button" @click="openCreate">登记雨量记录</button>
+        <RouterLink class="btn primary" to="/rainfall/handover">资料交接（先对账后入档）</RouterLink>
+        <button class="btn" type="button" @click="openCreate">登记雨量记录</button>
         <button class="btn" type="button" @click="exportRows">导出雨量观测清单</button>
       </div>
     </header>
+
+    <div v-if="activeHandover" class="notice">
+      <span>
+        交换号 {{ activeHandover.no }} 对账未完成：差异 {{ activeHandover.diffRows }} 行，已裁决
+        {{ activeHandover.resolvedRows }} 行，中断后从差异行继续。
+      </span>
+      <RouterLink class="link" to="/rainfall/handover">继续对账</RouterLink>
+    </div>
 
     <div class="stat-row">
       <article v-for="item in stats" :key="item.label" class="stat-card">
@@ -79,6 +88,7 @@ import {
   moduleMeta,
   runAction as applyAction,
 } from '@/api/local-service'
+import { batchProgress, getActiveBatch } from '@/api/handover-service'
 import type { EntryRow } from '@/data/types'
 
 const meta = moduleMeta('rainfall')
@@ -91,6 +101,7 @@ const rows = ref<EntryRow[]>([])
 const total = ref(0)
 const errorMessage = ref('')
 const filters = ref<Record<string, string>>({})
+const activeHandover = ref<{ no: string; diffRows: number; resolvedRows: number } | null>(null)
 const filterFields = columns.slice(0, 3)
 const statusSummary = computed(() =>
   statuses.map((status: string) => ({
@@ -133,5 +144,12 @@ function reload() {
   }
 }
 
-onMounted(reload)
+onMounted(() => {
+  reload()
+  const active = getActiveBatch()
+  if (active) {
+    const progress = batchProgress(active)
+    activeHandover.value = { no: active.exchangeNo, diffRows: progress.diffRows, resolvedRows: progress.resolvedRows }
+  }
+})
 </script>
