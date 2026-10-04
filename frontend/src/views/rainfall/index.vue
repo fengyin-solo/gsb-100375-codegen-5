@@ -3,7 +3,7 @@
     <header class="page-head">
       <div>
         <h2>雨量观测管理</h2>
-        <p class="page-desc">维护雨量记录，围绕记录编号、站点编号、观测时段、时段雨量做登记、筛选与状态流转。</p>
+        <p class="page-desc">维护雨量记录，围绕记录编号、站点编号、观测时段、时段雨量做登记、筛选与状态流转；资料交接改走下方「先对账后入档」。</p>
       </div>
       <div class="page-actions">
         <button class="btn primary" type="button" @click="openCreate">登记雨量记录</button>
@@ -67,6 +67,8 @@
       <span>共 {{ total }} 条雨量观测记录</span>
       <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
     </footer>
+
+    <HandoverPanel @archived="reload" />
   </section>
 </template>
 
@@ -80,24 +82,35 @@ import {
   runAction as applyAction,
 } from '@/api/local-service'
 import type { EntryRow } from '@/data/types'
+import HandoverPanel from './HandoverPanel.vue'
 
 const meta = moduleMeta('rainfall')
-const columns = ["记录编号", "站点编号", "观测时段", "时段雨量", "日累计雨量", "降雨强度", "观测人", "记录状态"]
+const columns = ["记录编号", "站点编号", "观测时段", "时段雨量", "日累计雨量", "降雨强度", "观测人", "校核人", "班次", "记录状态"]
 const actions = ["提交审核", "确认通过", "标记异常"]
 const statuses = ["已采集", "待审核", "已通过", "异常值"]
-const stats = [{"label": "今日观测站次", "value": 0}, {"label": "暴雨站点数", "value": 0}, {"label": "待审核记录", "value": 0}]
 
 const rows = ref<EntryRow[]>([])
 const total = ref(0)
 const errorMessage = ref('')
 const filters = ref<Record<string, string>>({})
-const filterFields = columns.slice(0, 3)
+const filterFields = ["记录编号", "站点编号", "观测时段"]
 const statusSummary = computed(() =>
   statuses.map((status: string) => ({
     status,
     count: rows.value.filter((row) => String(row.status) === status).length,
   })),
 )
+// 统计卡直接按当前列表实时算，交接新增的行刷新后也能立刻反映出来。
+const stats = computed(() => [
+  { label: "今日观测站次", value: rows.value.length },
+  {
+    label: "暴雨站点数",
+    value: new Set(
+      rows.value.filter((row) => String(row['降雨强度']).includes('暴雨')).map((row) => String(row['站点编号'])),
+    ).size,
+  },
+  { label: "待审核记录", value: rows.value.filter((row) => String(row.status) === '待审核').length },
+])
 
 function resetFilters() {
   filters.value = {}
@@ -109,7 +122,7 @@ function exportRows() {
 }
 
 function openCreate() {
-  errorMessage.value = '雨量记录登记入口尚未接入审批流'
+  errorMessage.value = '雨量记录登记入口尚未接入审批流；资料交接可在下方工作台导入交换文件'
 }
 
 function runAction(action: string, row: EntryRow) {
